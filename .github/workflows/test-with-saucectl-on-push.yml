@@ -1,0 +1,61 @@
+name: Test with saucectl
+
+on: [push]
+
+env:
+  SAUCE_USERNAME: ${{secrets.SAUCE_USERNAME}}
+  SAUCE_ACCESS_KEY: ${{secrets.SAUCE_ACCESS_KEY}}
+
+jobs:
+  main:
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Make gradlew executable
+        run: |
+          chmod +x gradlew
+          ls -la gradlew
+        shell: bash
+
+      - name: Compile
+        run: |
+          bash ./gradlew app:assembleDebug
+          bash ./gradlew app:assembleDebugAndroidTest
+        shell: bash
+
+      - name: Verify Sauce Labs credentials
+        run: |
+          if [ -z "$SAUCE_USERNAME" ] || [ -z "$SAUCE_ACCESS_KEY" ]; then
+            echo "❌ Sauce Labs credentials not set!"
+            echo "Please add SAUCE_USERNAME and SAUCE_ACCESS_KEY as GitHub secrets"
+            exit 1
+          else
+            echo "✅ Sauce Labs credentials are set"
+            echo "Username: ${SAUCE_USERNAME:0:3}***"
+          fi
+        shell: bash
+        env:
+          SAUCE_USERNAME: ${{ secrets.SAUCE_USERNAME }}
+          SAUCE_ACCESS_KEY: ${{ secrets.SAUCE_ACCESS_KEY }}
+
+      - name: Test espresso with saucectl
+        uses: saucelabs/saucectl-run-action@v1
+        with:
+          testing-environment: ""
+          concurrency: 10
+        env:
+          SAUCE_USERNAME: ${{ secrets.SAUCE_USERNAME }}
+          SAUCE_ACCESS_KEY: ${{ secrets.SAUCE_ACCESS_KEY }}
